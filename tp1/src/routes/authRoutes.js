@@ -1,38 +1,36 @@
-// routes/authRoutes.js
 const express = require('express');
 const router = express.Router();
 const User = require('../models/User');
-const bcrypt = require('bcrypt'); // Import de bcrypt
-const saltRounds = 12; // Exigence TP2
+const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
+const rateLimit = require('express-rate-limit');
 const authMiddleware = require('../middlewares/authMiddleware');
 
+const loginLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: process.env.NODE_ENV === 'test' ? 10 : 5, 
+    message: { error: "Trop de tentatives. Réessayez dans 15 minutes." },
+    standardHeaders: true,
+    legacyHeaders: false,
+});
+
+// Inscription
 router.post('/register', async (req, res, next) => {
     try {
         const { email, password } = req.body;
-
-        // Validation longueur (v1.2)
         if (!password || password.length < 4) {
             return res.status(400).json({ error: "Mot de passe trop court" });
         }
-
-        // HACHAGE (v2.1-bcrypt)
-        // C'est cette ligne qui va faire passer tes tests !
-        const hashedPassword = await bcrypt.hash(password, saltRounds);
-
-        const user = await User.create({ 
-            email, 
-            password: hashedPassword // On enregistre le hash, pas le clair
-        });
-        
+        const hashedPassword = await bcrypt.hash(password, 12);
+        const user = await User.create({ email, password: hashedPassword });
         res.status(201).json({ id: user.id, email: user.email });
     } catch (error) {
-        next(error); 
+        next(error); // Envoie vers le gestionnaire d'erreurs (SequelizeUniqueConstraintError)
     }
 });
 
-// --- LOGIN MIS À JOUR (v3.1) ---
-router.post('/login', async (req, res, next) => {
+// Login
+router.post('/login', loginLimiter, async (req, res, next) => {
     try {
         const { email, password } = req.body;
         const user = await User.findOne({ where: { email } });
@@ -41,40 +39,26 @@ router.post('/login', async (req, res, next) => {
             return res.status(401).json({ error: "Identifiants incorrects" });
         }
 
-        // Génération du Token
         const token = jwt.sign(
             { id: user.id, email: user.email },
-            process.env.APP_MASTER_KEY,
+            process.env.APP_MASTER_KEY || 'test_key_default',
             { expiresIn: '1h' }
         );
 
-        // On renvoie le token ET le userId pour que tes anciens tests passent aussi
-        res.json({ 
-            message: "Connexion réussie", 
-            token: token,
-            userId: user.id 
-        });
+        res.json({ message: "Connexion réussie", token, userId: user.id });
     } catch (error) {
         next(error);
     }
 });
 
-// --- ROUTE /ME PROTÉGÉE (v3.3) ---
+// Me
 router.get('/me', authMiddleware, async (req, res, next) => {
     try {
-        // req.user est rempli par le middleware
         const user = await User.findByPk(req.user.id);
-        if (!user) return res.status(404).json({ error: "Utilisateur non trouvé" });
-
-        res.json({
-            id: user.id,
-            email: user.email,
-            createdAt: user.createdAt
-        });
+        res.json({ id: user.id, email: user.email });
     } catch (error) {
         next(error);
     }
 });
 
-// Garde ta route register telle quelle...
 module.exports = router;

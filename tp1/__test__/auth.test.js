@@ -155,3 +155,19 @@ test('Protection : /me doit fonctionner avec un token valide', async () => {
     expect(response.statusCode).toBe(200);
     expect(response.body.email).toBe('login-success@test.com');
 });
+
+test('TP4 : Devrait bloquer après trop de tentatives (Rate Limit)', async () => {
+    // On simule 11 tentatives de login
+    for (let i = 0; i < 11; i++) {
+        const response = await request(app).post('/api/auth/login').send({
+            email: 'test@test.com',
+            password: 'mauvais-password'
+        });
+        
+        if (i === 10) {
+            // La 11ème doit être bloquée
+            expect(response.statusCode).toBe(429); 
+            expect(response.body.error).toContain("Trop de tentatives");
+        }
+    }
+});
