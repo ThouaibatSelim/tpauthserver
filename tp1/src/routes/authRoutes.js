@@ -1,26 +1,25 @@
-const express = require('express');
-const router = express.Router();
-const User = require('../models/User');
+// routes/authRoutes.js
 
 // Route d'inscription (v1.2-register)
-router.post('/register', async (req, res) => {
-  try {
+router.post('/register', async (req, res, next) => {
     const { email, password } = req.body;
 
-    // Validation exigée par le TP : au moins 4 caractères
+    // 1. Validation métier (toujours en premier)
     if (!password || password.length < 4) {
-      return res.status(400).json({ error: "Mot de passe trop court" });
+        return res.status(400).json({ error: "Le mot de passe doit faire au moins 4 caractères" });
     }
 
-    // Création de l'utilisateur (Mot de passe stocké EN CLAIR pour le TP1)
-    const user = await User.create({ email, password });
-    
-    res.status(201).json({ id: user.id, email: user.email });
-  } catch (error) {
-    // Gère l'email déjà utilisé (unique constraint)
-    res.status(400).json({ error: "Email déjà utilisé" });
-  }
+    // 2. Logique de création
+    // On utilise .catch(next) pour envoyer toute erreur (DB, réseau, etc.) au handler global
+    try {
+        const user = await User.create({ email, password });
+        res.status(201).json({ id: user.id, email: user.email });
+    } catch (error) {
+        // On envoie l'erreur au middleware global défini dans app.js
+        next(error); 
+    }
 });
+
 
 // Route pour récupérer ses propres infos (v1.4-protected)
 // DANGEREUX : N'importe qui peut changer l'ID dans l'URL
