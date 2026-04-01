@@ -122,3 +122,36 @@ test('Login : Devrait échouer si l\'email n\'existe pas', async () => {
 
     expect(response.statusCode).toBe(401);
 });
+
+test('JWT : Le login doit renvoyer un token valide', async () => {
+    const response = await request(app).post('/api/auth/login').send({
+        email: 'login-success@test.com',
+        password: 'password123'
+    });
+
+    expect(response.body).toHaveProperty('token');
+    // Un JWT possède toujours deux points (3 parties)
+    expect(response.body.token.split('.').length).toBe(3);
+});
+
+test('Protection : /me doit être inaccessible sans token', async () => {
+    const response = await request(app).get('/api/auth/me');
+    expect(response.statusCode).toBe(401); // Refusé
+});
+
+test('Protection : /me doit fonctionner avec un token valide', async () => {
+    // 1. On récupère le token
+    const loginRes = await request(app).post('/api/auth/login').send({
+        email: 'login-success@test.com',
+        password: 'password123'
+    });
+    const token = loginRes.body.token;
+
+    // 2. On l'utilise dans le header Authorization
+    const response = await request(app)
+        .get('/api/auth/me')
+        .set('Authorization', `Bearer ${token}`);
+
+    expect(response.statusCode).toBe(200);
+    expect(response.body.email).toBe('login-success@test.com');
+});
