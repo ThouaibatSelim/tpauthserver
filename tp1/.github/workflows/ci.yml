@@ -37,3 +37,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+      - name: Run Tests
+        run: npm test
+        env:
+          APP_MASTER_KEY: test_master_key_for_ci_only # La clé fictive demandée

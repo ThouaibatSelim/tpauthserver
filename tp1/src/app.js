@@ -1,3 +1,4 @@
+require('dotenv').config(); // Charge le fichier .env
 const express = require('express');
 const authRoutes = require('./routes/authRoutes');
 const sequelize = require('./config/db');
