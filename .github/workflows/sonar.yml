@@ -16,8 +16,8 @@ jobs:
         with:
           fetch-depth: 0
           
-      - name: SonarCloud Scan
-        uses: SonarSource/sonarcloud-github-action@master
+      - name: SonarQube Scan
+        # On utilise la nouvelle action recommandée pour éviter les warnings
+        uses: SonarSource/sonarqube-scan-action@v3 
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
