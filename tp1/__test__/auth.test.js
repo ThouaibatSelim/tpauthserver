@@ -171,3 +171,69 @@ test('TP4 : Devrait bloquer après trop de tentatives (Rate Limit)', async () =>
         }
     }
 });
+
+// TP5
+
+describe('Changement de mot de passe (TP5)', () => {
+    let token;
+
+beforeAll(async () => {
+        // 1. On crée l'utilisateur (on ignore si il existe déjà avec un catch vide)
+        await request(app).post('/api/auth/register').send({ 
+            email: 'test-nouveau-final@test.com', 
+            password: 'OldPassword123!' 
+        }).catch(() => {});
+
+        // 2. On se connecte
+        const loginRes = await request(app).post('/api/auth/login').send({ 
+            email: 'test-nouveau-final@test.com', 
+            password: 'OldPassword123!' 
+        });
+
+        // 3. VERIFICATION CRITIQUE
+        token = loginRes.body.token;
+        
+        if (!token) {
+            console.error("ERREUR : Le login n'a pas renvoyé de token !", loginRes.body);
+        }
+    });
+
+    test('Succès : Changement de mot de passe valide', async () => {
+        const res = await request(app)
+            .put('/api/auth/change-password')
+            .set('Authorization', `Bearer ${token}`)
+            .send({
+                email: 'test-nouveau-final@test.com',
+                oldPassword: 'OldPassword123!',
+                newPassword: 'NewSecurePassword2026!',
+                confirmPassword: 'NewSecurePassword2026!'
+            });
+        expect(res.statusCode).toBe(200);
+    });
+
+    test('Échec : Ancien mot de passe incorrect', async () => {
+        const res = await request(app)
+            .put('/api/auth/change-password')
+            .set('Authorization', `Bearer ${token}`)
+            .send({
+                email: 'test-nouveau-final@test.com',
+                oldPassword: 'MauvaisPassword999!',
+                newPassword: 'NewSecurePassword2026!',
+                confirmPassword: 'NewSecurePassword2026!'
+            });
+        expect(res.statusCode).toBe(401);
+    });
+
+    test('Échec : Confirmation différente', async () => {
+        const res = await request(app)
+            .put('/api/auth/change-password')
+            .set('Authorization', `Bearer ${token}`)
+            .send({
+                email: 'test-nouveau-final@test.com',
+                oldPassword: 'OldPassword123!',
+                newPassword: 'NewSecurePassword2026!',
+                confirmPassword: 'PasswordDifferent123!'
+            });
+        expect(res.statusCode).toBe(400);
+    });
+});

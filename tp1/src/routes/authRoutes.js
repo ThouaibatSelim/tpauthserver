@@ -61,4 +61,46 @@ router.get('/me', authMiddleware, async (req, res, next) => {
     }
 });
 
+// Route pour changer le mot de passe (TP5)
+router.put('/change-password', authMiddleware, async (req, res, next) => {
+   
+    console.log("CONTROLEUR : Route atteinte !"); // Si tu ne vois pas ça, c'est le middleware qui bloque
+    console.log("UTILISATEUR CONNECTÉ :", req.user);
+    
+    try {
+        const { oldPassword, newPassword, confirmPassword } = req.body;
+
+        // 1. Validation de la confirmation
+        if (newPassword !== confirmPassword) {
+            return res.status(400).json({ error: "La confirmation est différente" });
+        }
+
+        // 2. Validation de la force du MDP (TP5 : 12 caractères + Maj + Chiffre + Spécial)
+        const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{12,}$/;
+        if (!passwordRegex.test(newPassword)) {
+            return res.status(400).json({ error: "Le mot de passe doit contenir 12 caractères, une majuscule, un chiffre et un caractère spécial" });
+        }
+
+        // 3. Récupération de l'utilisateur via l'ID extrait du token (req.user.id)
+        const user = await User.findByPk(req.user.id);
+        if (!user) {
+            return res.status(404).json({ error: "Utilisateur non trouvé" });
+        }
+
+        // 4. Vérification de l'ancien mot de passe
+        const isMatch = await bcrypt.compare(oldPassword, user.password);
+        if (!isMatch) {
+            return res.status(401).json({ error: "Ancien mot de passe incorrect" });
+        }
+
+        // 5. Hachage et sauvegarde
+        user.password = await bcrypt.hash(newPassword, 12);
+        await user.save();
+
+        res.json({ message: "Mot de passe mis à jour avec succès" });
+    } catch (error) {
+        next(error);
+    }
+});
+
 module.exports = router;
